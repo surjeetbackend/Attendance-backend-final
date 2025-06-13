@@ -11,7 +11,8 @@ const userSchema = new mongoose.Schema({
     dob: String,
     hireDate: String,
     shift: String,
-    photo: String, // base64 image  
+    photo: String,   
+    
 
 });
 

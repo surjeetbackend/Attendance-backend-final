@@ -36,12 +36,12 @@ router.post('/mark', async(req, res) => {
 
         // If attendance exists
         if (attendance) {
-            // If trying to mark 'in' again
+            // check if  mark 'in'
             if (type === 'in' && attendance.inTime) {
                 return res.status(400).json({ error: 'In-Time already marked for today' });
             }
 
-            // If trying to mark 'out' again
+            // check if exist mark out
             if (type === 'out' && attendance.outTime) {
                 return res.status(400).json({ error: 'Out-Time already marked for today' });
             }

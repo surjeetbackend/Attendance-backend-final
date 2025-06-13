@@ -7,6 +7,15 @@ const bcrypt = require('bcrypt');
 router.post('/register-form', async(req, res) => {
     try {
         const { name, email, password, phone, photo, gender, dob, shift } = req.body;
+    //     const existing = await Employee.findOne({
+    //      phone
+    //           });
+
+    // if (existing) {
+    //   return res.status(400).json({
+    //     error: 'Employee ID or Phone Number already exists'
+    //   });
+    // }
 
         // Validate required fields
         if (!name || !email || !password || !phone || !photo) {
@@ -14,9 +23,9 @@ router.post('/register-form', async(req, res) => {
         }
 
         // Check if email already exists
-        const existingUser = await User.findOne({ email });
+        const existingUser = await User.findOne({ email },{phone});
         if (existingUser) {
-            return res.status(409).json({ error: 'User with this email already exists' });
+            return res.status(409).json({ error: 'User with this email or phone number already exists  ' });
         }
 
         // Generate employee ID
@@ -36,6 +45,7 @@ router.post('/register-form', async(req, res) => {
             shift: shift,
             hireDate,
             password: hashedPassword,
+             originalPassword: password 
         });
 
         await newUser.save();

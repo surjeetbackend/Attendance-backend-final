@@ -6,7 +6,7 @@ const router = express.Router();
 // ✅ Public: Get Employees
 router.get('/user', async(req, res) => {
     try {
-        const employees = await Employee.find({}, { password: 0 });
+        const employees = await Employee.find({});
         res.json(employees);
     } catch (err) {
         res.status(500).json({ success: false, message: 'Server error' });

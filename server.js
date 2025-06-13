@@ -31,7 +31,7 @@ const attendanceRoutes = require('./route/attendanc');
 app.use(express.json())
 const adminRoutes = require('./route/admin');
 
-app.use('/api', authRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/attendanc', attendanceRoutes);
 app.use('/api/admin', adminRoutes);
 
