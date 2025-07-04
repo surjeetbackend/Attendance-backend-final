@@ -55,6 +55,8 @@ router.post('/mark', async(req, res) => {
                 attendance.outTime = time;
                 attendance.outLocation = locationName;
             }
+  
+
 
             await attendance.save();
             return res.json({ message: `Attendance ${type === 'in' ? 'in-time' : 'out-time'} marked successfully` });
@@ -80,6 +82,5 @@ router.post('/mark', async(req, res) => {
         res.status(500).json({ error: 'Failed to mark attendance' });
     }
 });
-
 
 module.exports = router;
