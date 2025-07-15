@@ -30,11 +30,14 @@ const authRoutes = require('./route/auth');
 const attendanceRoutes = require('./route/attendanc');
 app.use(express.json())
 const adminRoutes = require('./route/admin');
+const LeaveRoutes=require('./route/Leave');
+//otp work 
+
 
 app.use('/api/auth', authRoutes);
 app.use('/api/attendanc', attendanceRoutes);
 app.use('/api/admin', adminRoutes);
-
+app.use ('/api/leave',LeaveRoutes)
 // Start server
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
