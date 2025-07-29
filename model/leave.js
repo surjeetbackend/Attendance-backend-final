@@ -30,6 +30,10 @@ const LeaveSchema = new mongoose.Schema({
     appliedAt: {
         type: Date,
         default: Date.now
+    },
+    approveBy:{
+        type:String,
+        required:true
     }
 });
 
