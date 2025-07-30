@@ -114,7 +114,7 @@ router.get('/my/:employeeId', async (req, res) => {
       paidLeave: {
         total: totalPaidLeave,
         used: cappedUsedLeave,
-        remaining: remainingPaidLeave
+        remaining: remainingPaidLeave,
       }
     });
 
@@ -140,8 +140,9 @@ router.get('/pending', async (req, res) => {
 router.patch('/:id/approve', async (req, res) => {
   try {
     const adminName = req.user?.name || 'Super Admin';
-    const leave = await Leave.findById(req.params.id);
+    const { hrComment } = req.body;
 
+    const leave = await Leave.findById(req.params.id);
     if (!leave) return res.status(404).json({ error: 'Leave not found' });
 
     if (leave.status === 'approved') {
@@ -150,7 +151,8 @@ router.patch('/:id/approve', async (req, res) => {
 
     await Leave.findByIdAndUpdate(req.params.id, {
       status: 'approved',
-      approveBy: adminName
+      approveBy: adminName,
+      hrComment: hrComment || ''
     });
 
     const employee = await User.findOne({ empId: leave.employeeId });
@@ -165,23 +167,30 @@ router.patch('/:id/approve', async (req, res) => {
           employee.paidLeave.used += duration;
           await employee.save();
         }
-      } else {
-        console.warn(`Invalid leave dates for leave ${leave._id} during approval.`);
       }
     }
 
     res.json({ message: 'Leave approved by ' + adminName });
-
   } catch (error) {
     res.status(500).json({ error: 'Failed to approve leave.' });
   }
 });
 
 
+
 // Reject leave
 router.patch('/:id/reject', async (req, res) => {
   try {
-    await Leave.findByIdAndUpdate(req.params.id, { status: 'rejected' });
+    const { hrComment } = req.body;
+
+    const leave = await Leave.findById(req.params.id);
+    if (!leave) return res.status(404).json({ error: 'Leave not found' });
+
+    await Leave.findByIdAndUpdate(req.params.id, {
+      status: 'rejected',
+      hrComment: hrComment || ''
+    });
+
     res.json({ message: 'Leave rejected.' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to reject leave.' });
@@ -189,7 +198,8 @@ router.patch('/:id/reject', async (req, res) => {
 });
 
 
-// Get all leave records
+
+
 router.get('/all', async (req, res) => {
   try {
     const leaves = await Leave.find().sort({ appliedAt: -1 });
@@ -200,7 +210,7 @@ router.get('/all', async (req, res) => {
 });
 
 
-// Check leave status for a given date
+
 router.get('/check/:employeeId', async (req, res) => {
   try {
     const { date } = req.query;
