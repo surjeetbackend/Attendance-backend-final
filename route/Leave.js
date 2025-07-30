@@ -5,11 +5,12 @@ const User = require('../model/user');
 
 
 // Apply for leave
+// Apply for leave
 router.post('/apply', async (req, res) => {
   try {
-    const { empId, startDate, endDate, reason } = req.body;
+    const { empId, empName, startDate, endDate, reason } = req.body;
 
-    if (!empId || !startDate || !endDate || !reason) {
+    if (!empId || !empName || !startDate || !endDate || !reason) {
       return res.status(400).json({ error: 'All fields are required' });
     }
 
@@ -27,26 +28,28 @@ router.post('/apply', async (req, res) => {
     const today = new Date();
     const sixMonthsPassed = today - hireDate >= 183 * 24 * 60 * 60 * 1000;
 
-    if (!sixMonthsPassed) {
-      return res.status(403).json({ error: 'Leave not allowed before 6 months of joining' });
+    const durationDays = Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1;
+
+    let paidDays = 0;
+    let unpaidDays = durationDays;
+    let leaveTypeSummary = 'unpaid';
+
+    if (sixMonthsPassed) {
+      const paidLeaveRemaining = Math.max(employee.paidLeave.total - employee.paidLeave.used, 0);
+      paidDays = Math.min(durationDays, paidLeaveRemaining);
+      unpaidDays = durationDays - paidDays;
+
+      leaveTypeSummary =
+        paidDays > 0 && unpaidDays > 0
+          ? `partially paid (${paidDays} paid, ${unpaidDays} unpaid)`
+          : paidDays > 0
+          ? 'paid'
+          : 'unpaid';
     }
 
-    const durationDays = Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1;
-    const paidLeaveRemaining = Math.max(employee.paidLeave.total - employee.paidLeave.used, 0);
-
-    const paidDays = Math.min(durationDays, paidLeaveRemaining);
-    const unpaidDays = durationDays - paidDays;
-
-    const leaveTypeSummary =
-      paidDays > 0 && unpaidDays > 0
-        ? `partially paid (${paidDays} paid, ${unpaidDays} unpaid)`
-        : paidDays > 0
-        ? 'paid'
-        : 'unpaid';
-
     const newLeave = new Leave({
-      employeeId: employee.empId,
-      employeeName: employee.name,
+      employeeId: empId,
+      employeeName: empName,
       startDate,
       endDate,
       reason,
@@ -70,6 +73,7 @@ router.post('/apply', async (req, res) => {
     res.status(500).json({ error: 'Failed to apply for leave.' });
   }
 });
+
 
 
 
