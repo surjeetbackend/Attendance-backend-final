@@ -3,8 +3,6 @@ const router = express.Router();
 const Leave = require('../model/leave');
 const User = require('../model/user');
 
-
-// Apply for leave
 // Apply for leave
 router.post('/apply', async (req, res) => {
   try {
@@ -75,18 +73,13 @@ router.post('/apply', async (req, res) => {
 });
 
 
-
-
 // Get leaves by employee code
 router.get('/my/:employeeId', async (req, res) => {
   try {
     const { employeeId } = req.params;
-    console.log('Looking for employee with code:', employeeId);
-
     const employee = await User.findOne({ empId: employeeId });
 
     if (!employee) {
-      console.log('No employee found with that code');
       return res.status(404).json({ error: 'Employee not found' });
     }
 
@@ -102,18 +95,17 @@ router.get('/my/:employeeId', async (req, res) => {
     for (const leave of approvedLeaves) {
       const start = new Date(leave.startDate);
       const end = new Date(leave.endDate);
-
-      // Only count valid date ranges
-      if (end >= start) {
+      if (end >= start && leave.leaveType === 'paid') {
         const duration = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
         usedPaidLeave += duration;
-      } else {
-        console.warn(`Invalid leave dates for leave ${leave._id}: endDate before startDate.`);
       }
     }
 
-    const totalPaidLeave = employee.paidLeave?.total || 0;
-    // Optionally cap usedPaidLeave to totalPaidLeave to avoid negative remaining
+    const hireDate = new Date(employee.hireDate);
+    const today = new Date();
+    const sixMonthsPassed = today - hireDate >= 183 * 24 * 60 * 60 * 1000;
+
+    const totalPaidLeave = sixMonthsPassed ? (employee.paidLeave?.total || 0) : 0;
     const cappedUsedLeave = Math.min(usedPaidLeave, totalPaidLeave);
     const remainingPaidLeave = totalPaidLeave - cappedUsedLeave;
 
@@ -132,6 +124,7 @@ router.get('/my/:employeeId', async (req, res) => {
   }
 });
 
+
 // View all pending leaves
 router.get('/pending', async (req, res) => {
   try {
@@ -141,6 +134,7 @@ router.get('/pending', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch pending leaves.' });
   }
 });
+
 
 // Approve leave
 router.patch('/:id/approve', async (req, res) => {
@@ -167,7 +161,6 @@ router.patch('/:id/approve', async (req, res) => {
       if (end >= start) {
         const duration = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
 
-        // Deduct only if leaveType is 'paid'
         if (leave.leaveType === 'paid') {
           employee.paidLeave.used += duration;
           await employee.save();
@@ -184,6 +177,7 @@ router.patch('/:id/approve', async (req, res) => {
   }
 });
 
+
 // Reject leave
 router.patch('/:id/reject', async (req, res) => {
   try {
@@ -194,6 +188,7 @@ router.patch('/:id/reject', async (req, res) => {
   }
 });
 
+
 // Get all leave records
 router.get('/all', async (req, res) => {
   try {
@@ -203,6 +198,7 @@ router.get('/all', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch all leave records.' });
   }
 });
+
 
 // Check leave status for a given date
 router.get('/check/:employeeId', async (req, res) => {
@@ -221,5 +217,3 @@ router.get('/check/:employeeId', async (req, res) => {
     res.status(500).json({ error: 'Failed to check leave status.' });
   }
 });
-
-module.exports = router;
