@@ -217,3 +217,49 @@ router.get('/check/:employeeId', async (req, res) => {
     res.status(500).json({ error: 'Failed to check leave status.' });
   }
 });
+
+// router.get('/eligibility/:empId', async (req, res) => {
+//   try {
+//     const { empId } = req.params;
+//     const { startDate, endDate } = req.query;
+
+//     const employee = await User.findOne({ empId });
+//     if (!employee) return res.status(404).json({ error: 'Employee not found' });
+
+//     const hireDate = new Date(employee.hireDate);
+//     const today = new Date();
+//     const sixMonthsPassed = today - hireDate >= 183 * 24 * 60 * 60 * 1000;
+
+//     const duration = Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1;
+
+//     let paidDays = 0;
+//     let unpaidDays = duration;
+//     let leaveType = 'unpaid';
+
+//     if (sixMonthsPassed) {
+//       const remaining = employee.paidLeave.total - employee.paidLeave.used;
+//       paidDays = Math.min(duration, Math.max(remaining, 0));
+//       unpaidDays = duration - paidDays;
+
+//       leaveType = paidDays > 0 && unpaidDays > 0
+//         ? `partially paid (${paidDays} paid, ${unpaidDays} unpaid)`
+//         : paidDays > 0
+//         ? 'paid'
+//         : 'unpaid';
+//     }
+
+//     res.json({
+//       eligible: sixMonthsPassed,
+//       paidDays,
+//       unpaidDays,
+//       leaveType,
+//       note: sixMonthsPassed ? `You will get: ${leaveType}` : 'You are not eligible for paid leave (less than 6 months)'
+//     });
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ error: 'Something went wrong' });
+//   }
+// });
+
+
+module.exports = router;
