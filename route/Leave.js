@@ -181,7 +181,7 @@ router.patch('/:id/approve', async (req, res) => {
 // Reject leave
 router.patch('/:id/reject', async (req, res) => {
   try {
-    const { hrComment } = req.body;
+    const { hrComment } = req.body||{};
 
     const leave = await Leave.findById(req.params.id);
     if (!leave) return res.status(404).json({ error: 'Leave not found' });
