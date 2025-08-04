@@ -3,11 +3,11 @@ const Employee = require('../model/user');
 const Attendance = require('../model/Attendance');
 const router = express.Router();
 
-// ✅ GET Employees (optimized with lean & selected fields)
+
 router.get('/user', async (req, res) => {
   try {
     const employees = await Employee.find({})
-      .select('empId name designation photo') // only needed fields
+      .select('empId name designation photo') 
       .lean();
 
     res.json(employees);
@@ -16,7 +16,7 @@ router.get('/user', async (req, res) => {
   }
 });
 
-// ✅ GET Attendance Records with Pagination
+
 router.get('/attendances', async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -27,7 +27,7 @@ router.get('/attendances', async (req, res) => {
       .skip(skip)
       .limit(limit)
       .sort({ date: -1 })
-      .select('-__v') // remove unused field
+      .select('-__v') 
       .lean();
 
     res.json(records);
@@ -36,13 +36,13 @@ router.get('/attendances', async (req, res) => {
   }
 });
 
-// ✅ GET employee by empId (with selected fields)
+
 router.get('/user/:empId', async (req, res) => {
   try {
     const empId = req.params.empId;
 
     const user = await Employee.findOne({ empId })
-      .select('empId name photo email designation') // include only needed
+      .select('empId name photo email designation') 
       .lean();
 
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -53,23 +53,46 @@ router.get('/user/:empId', async (req, res) => {
   }
 });
 
-// ✅ PUT update photo
-router.put('/user/:empId', async (req, res) => {
+
+router.put('/user/:empId/update', async (req, res) => {
   try {
     const empId = req.params.empId;
-    const { photo } = req.body;
+    let updateData = req.body;
+
+    
+    const blockeddata = ['empId', 'password', 'photo']; 
+
+    blockeddata.forEach(field => delete updateData[field]);
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ error: 'No valid fields provided for update' });
+    }
 
     const user = await Employee.findOneAndUpdate(
       { empId },
-      { photo },
+      { $set: updateData },
       { new: true }
     );
 
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
 
-    res.json({ message: 'Photo updated', photo: user.photo });
+    res.json({ message: 'User updated successfully', user });
   } catch (err) {
-    res.status(500).json({ error: 'Error updating photo' });
+    console.error(err);
+    res.status(500).json({ error: 'Error updating user' });
+  }
+});
+
+router.delete('/user/:empId/delete', async (req, res) => {
+  try {
+    const empId = req.params.empId;
+    const user = await Employee.findOneAndDelete({ empId });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json({ message: 'User deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error deleting user' });
   }
 });
 
