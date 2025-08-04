@@ -7,7 +7,7 @@ const router = express.Router();
 router.get('/user', async (req, res) => {
   try {
     const employees = await Employee.find({})
-      .select('empId name designation photo') 
+      .select('empId name email phone hireDate photo ') 
       .lean();
 
     res.json(employees);
