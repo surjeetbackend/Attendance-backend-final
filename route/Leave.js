@@ -139,8 +139,8 @@ router.get('/pending', async (req, res) => {
 // Approve leave
 router.patch('/:id/approve', async (req, res) => {
   try {
-    const adminName = req.user?.name || 'Super Admin';
-    const { hrComment } = req.body;
+   const { adminName, hrComment } = req.body;
+
 
     const leave = await Leave.findById(req.params.id);
     if (!leave) return res.status(404).json({ error: 'Leave not found' });
