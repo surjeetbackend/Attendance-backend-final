@@ -6,34 +6,24 @@ const bcrypt = require('bcrypt');
 // Register a new employee
 router.post('/register-form', async(req, res) => {
     try {
-        const { name, email, password, phone, photo, gender, dob, shift } = req.body;
-    //     const existing = await Employee.findOne({
-    //      phone
-    //           });
+        const { name, email, password, phone, photo, gender, dob, shift, hireDate  } = req.body;
 
-    // if (existing) {
-    //   return res.status(400).json({
-    //     error: 'Employee ID or Phone Number already exists'
-    //   });
-    // }
-
-        // Validate required fields
-        if (!name || !email || !password || !phone || !photo) {
+        if (!name || !email || !password || !phone || !photo|| !hireDate ) {
             return res.status(400).json({ error: 'Please fill all required fields' });
         }
 
-        // Check if email already exists
+  
         const existingUser = await User.findOne({ email },{phone});
         if (existingUser) {
             return res.status(409).json({ error: 'User with this email or phone number already exists  ' });
         }
 
-        // Generate employee ID
+      
         const empId = name.substring(0, 3).toUpperCase() + Math.floor(100 + Math.random() * 900);
         const hashedPassword = await bcrypt.hash(password, 10);
-        const hireDate = new Date().toLocaleDateString();
+      
 
-        // Create and save user
+       
         const newUser = new User({
             empId,
             name: name.trim(),
@@ -57,7 +47,7 @@ router.post('/register-form', async(req, res) => {
     }
 });
 
-// Employee login
+
 router.post('/login', async(req, res) => {
     try {
         const { empId, password } = req.body;
