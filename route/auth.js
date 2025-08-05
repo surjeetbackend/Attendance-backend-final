@@ -6,7 +6,7 @@ const bcrypt = require('bcrypt');
 // Register a new employee
 router.post('/register-form', async(req, res) => {
     try {
-        const { name, email, password, phone, photo, gender, dob, shift, hireDate  } = req.body;
+        const { name, email, password, phone, photo, gender,  shift, hireDate  } = req.body;
 
         if (!name || !email || !password || !phone || !photo|| !hireDate ) {
             return res.status(400).json({ error: 'Please fill all required fields' });
