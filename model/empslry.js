@@ -1,8 +1,8 @@
 const mongoose=require('mongoose');
-const user = require('./user');
+const User = require('./user');
 
 const profile=mongoose.Schema({
-    // user:{type:mongoose.Schema.ObjectId,ref:'User',required:true, unique:true},
+    users:{type:mongoose.Schema.ObjectId,ref:'User',required:true, unique:true},
     user: { type: String, required: true, unique: true },
     userAccount:{
         bank_name:{type:String,},

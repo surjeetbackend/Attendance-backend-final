@@ -2,6 +2,39 @@ const express = require('express');
 const Employee = require('../model/user');
 const Attendance = require('../model/Attendance');
 const router = express.Router();
+const { Parser } = require('json2csv');
+
+
+router.get('/attendance/download-today', async (req, res) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+
+    const records = await Attendance.find({ date: { $gte: today, $lt: tomorrow } })
+      .populate('empId', 'empId name')
+      .lean();
+
+    if (!records.length) return res.status(404).json({ message: 'No records found' });
+
+    const data = records.map(r => ({
+      EmployeeID: r.empId?.empId,
+      Name: r.empId?.name,
+      InTime: r.inTime || '-',
+      OutTime: r.outTime || '-',
+    }));
+
+    const csv = new Parser({ fields: ['EmployeeID', 'Name', 'InTime', 'OutTime'] }).parse(data);
+
+    res.header('Content-Type', 'text/csv');
+    res.attachment(`attendance_${today.toISOString().split('T')[0]}.csv`);
+    res.send(csv);
+  } catch (err) {
+    res.status(500).json({ error: 'Error generating CSV' });
+  }
+});
+
 
 
 router.get('/user', async (req, res) => {
@@ -16,18 +49,18 @@ router.get('/user', async (req, res) => {
   }
 });
 
-
 router.get('/attendances', async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50;
+    const { empId, page = 1, limit = 50 } = req.query;
     const skip = (page - 1) * limit;
 
-    const records = await Attendance.find({})
+    const query = empId ? { empId } : {};
+
+    const records = await Attendance.find(query)
       .skip(skip)
-      .limit(limit)
+      .limit(parseInt(limit))
       .sort({ date: -1 })
-      .select('-__v') 
+      .select('-__v')
       .lean();
 
     res.json(records);
