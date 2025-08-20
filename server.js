@@ -32,6 +32,7 @@ app.use(express.json())
 const adminRoutes = require('./route/admin');
 const LeaveRoutes=require('./route/Leave');
 const emp_pay=require('./route/emp_pay');
+const holidayRoutes=require('./route/holidayRoutes')
 //otp work 
 
 
@@ -40,6 +41,7 @@ app.use('/api/attendanc', attendanceRoutes);
 app.use('/api/admin', adminRoutes);
 app.use ('/api/leave',LeaveRoutes);
 app.use('/api/emp',emp_pay);
+app.use("/api/holidays", holidayRoutes);
 
 // Start server
 app.listen(PORT, () => {

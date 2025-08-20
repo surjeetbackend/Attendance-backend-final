@@ -5,35 +5,29 @@ const router = express.Router();
 const { Parser } = require('json2csv');
 
 
-router.get('/attendance/download-today', async (req, res) => {
+router.get('/attendances/today', async (req, res) => {
   try {
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0); // today start
     const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);
+    tomorrow.setDate(today.getDate() + 1); // tomorrow start
 
-    const records = await Attendance.find({ date: { $gte: today, $lt: tomorrow } })
-      .populate('empId', 'empId name')
+    const records = await Attendance.find({
+      date: { $gte: today, $lt: tomorrow } // today only
+    })
+      .populate('empId', 'empId name email phone') // Employee info
+      .sort({ inTime: 1 })
       .lean();
 
-    if (!records.length) return res.status(404).json({ message: 'No records found' });
+    if (!records.length) return res.status(404).json({ message: 'No records found today' });
 
-    const data = records.map(r => ({
-      EmployeeID: r.empId?.empId,
-      Name: r.empId?.name,
-      InTime: r.inTime || '-',
-      OutTime: r.outTime || '-',
-    }));
-
-    const csv = new Parser({ fields: ['EmployeeID', 'Name', 'InTime', 'OutTime'] }).parse(data);
-
-    res.header('Content-Type', 'text/csv');
-    res.attachment(`attendance_${today.toISOString().split('T')[0]}.csv`);
-    res.send(csv);
+    res.json({ message: 'Today attendance fetched', records });
   } catch (err) {
-    res.status(500).json({ error: 'Error generating CSV' });
+    console.error(err);
+    res.status(500).json({ message: 'Server error', error: err });
   }
 });
+
 
 
 
