@@ -2,78 +2,63 @@ const express = require('express');
 const Employee = require('../model/user');
 const Attendance = require('../model/Attendance');
 const router = express.Router();
-const { Parser } = require('json2csv');
-const fs = require('fs');
-const path = require('path');
+const ExcelJS = require("exceljs");
 
-
-async function handleAttendanceDownload(req, res, date) {
+router.post("/download", async (req, res) => {
   try {
-    const startOfDay = new Date(date);
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
+    let { date } = req.body; 
+
+    if (!date) {
+      return res.status(400).json({ message: "Date is required" });
+    }
+const inputDate = new Date(date);
+    if (isNaN(inputDate)) {
+      return res.status(400).json({ message: "Invalid date format. Use MM/DD/YYYY" });
+    }
+
+    const formattedWithZero = inputDate.toLocaleDateString("en-US"); 
+    const formattedWithoutZero = `${inputDate.getMonth() + 1}/${inputDate.getDate()}/${inputDate.getFullYear()}`; 
 
     const records = await Attendance.find({
-      date: { $gte: startOfDay, $lte: endOfDay }
+      date: { $in: [formattedWithZero, formattedWithoutZero] }
     });
 
-    if (!records || records.length === 0) {
+    if (!records.length) {
       return res.status(404).json({ message: "No records found for this date" });
     }
 
-    // Transform the data
-    const formattedRecords = records.map(r => ({
-      empId: r.empId,
-      name: r.name,
-      date: new Date(r.date).toLocaleDateString("en-IN"), // e.g. 20/08/2025
-      inTime: r.inTime || "",
-      outTime: r.outTime || "",
-      inLocation: r.inLocation || "",
-      outLocation: r.outLocation || ""
-    }));
 
-    const fields = [
-      { label: "Employee ID", value: "empId" },
-      { label: "Name", value: "name" },
-      { label: "Date", value: "date" },
-      { label: "In Time", value: "inTime" },
-      { label: "Out Time", value: "outTime" },
-      { label: "In Location", value: "inLocation" },
-      { label: "Out Location", value: "outLocation" },
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Attendance");
+
+    worksheet.columns = [
+      { header: "Emp ID", key: "empId", width: 15 },
+      { header: "Name", key: "name", width: 20 },
+      { header: "Date", key: "date", width: 15 },
+      { header: "In Time", key: "inTime", width: 15 },
+      { header: "Out Time", key: "outTime", width: 15 },
+      { header: "In Location", key: "inLocation", width: 40 },
+      { header: "Out Location", key: "outLocation", width: 40 }
     ];
 
-    const json2csv = new Parser({ fields });
-    const csv = json2csv.parse(formattedRecords);
+    records.forEach(r => worksheet.addRow(r));
 
-    res.header("Content-Type", "text/csv");
-    res.attachment(`attendance_${date.toISOString().split("T")[0]}.csv`);
-    return res.send(csv);
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=attendance_${date}.xlsx`
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
   } catch (err) {
-    console.error("Error generating CSV:", err);
-    res.status(500).json({ message: "Server Error", error: err.message });
+    console.error("Download error:", err);
+    res.status(500).json({ message: "Server error" });
   }
-}
-
-// Route 1: Download today's attendance (no date passed)
-router.get('/attendances/today/download', async (req, res) => {
-  const today = new Date();
-  await handleAttendanceDownload(req, res, today);
 });
-
-// Route 2: Download attendance for a specific date
-router.get('/attendances/today/download/:date', async (req, res) => {
-  const { date } = req.params;
-  if (!date) {
-    return res.status(400).json({ message: "Please provide a date" });
-  }
-  const parsedDate = new Date(date);
-  if (isNaN(parsedDate.getTime())) {
-    return res.status(400).json({ message: "Invalid date format. Use YYYY-MM-DD." });
-  }
-  await handleAttendanceDownload(req, res, parsedDate);
-});
-
-
 
 
 router.get('/user', async (req, res) => {
