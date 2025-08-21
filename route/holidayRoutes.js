@@ -4,24 +4,28 @@ const router = express.Router();
 const Holiday = require("../model/holidays");
 
 
-router.get("/", async (req, res) => {
+router.post("/", async (req, res) => {
+  try {
+    const { name, date, day } = req.body;
+    const newHoliday = new Holiday({ name, date, day });
+    await newHoliday.save();
+    res.status(201).json({ message: "Holiday added", holiday: newHoliday });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to add holiday" });
+  }
+});
+
+
+router.get("/get", async (req, res) => {
   try {
     const holidays = await Holiday.find();
     res.json(holidays);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: "Server error" });
   }
 });
 
-
-router.post("/add", async (req, res) => {
-  try {
-    const holidays = req.body; 
-    await Holiday.insertMany(holidays);
-    res.json({ message: "Holidays added successfully" });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to add holidays" });
-  }
-});
-
 module.exports = router;
+
