@@ -3,7 +3,8 @@ const Employee = require('../model/user');
 const Attendance = require('../model/Attendance');
 const router = express.Router();
 const ExcelJS = require("exceljs");
-
+const Notification = require("../model/Notification");
+const Profile = require('../model/empslry');   
 router.post("/download", async (req, res) => {
   try {
     let { date } = req.body; 
@@ -64,25 +65,31 @@ const inputDate = new Date(date);
 router.get('/user', async (req, res) => {
   try {
     const employees = await Employee.find({})
-      .select('empId name email phone hireDate photo ') 
+      .select('empId name email phone hireDate photo') 
+      .populate({
+        path: 'profile',   
+        model: 'Profile'
+      })
       .lean();
 
     res.json(employees);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
+
 router.get('/attendances', async (req, res) => {
   try {
-    const { empId, page = 1, limit = 50 } = req.query;
+    const { empId, page = 1, limit = 500 } = req.query;
     const skip = (page - 1) * limit;
 
     const query = empId ? { empId } : {};
-
-    const records = await Attendance.find(query)
+  const records = await Attendance.find(query)
       .skip(skip)
       .limit(parseInt(limit))
+
       .sort({ date: -1 })
       .select('-__v')
       .lean();
@@ -93,32 +100,40 @@ router.get('/attendances', async (req, res) => {
   }
 });
 
-
 router.get('/user/:empId', async (req, res) => {
   try {
     const empId = req.params.empId;
 
+   
     const user = await Employee.findOne({ empId })
-      .select('empId name photo email designation') 
+      .select('empId name photo email designation')
       .lean();
 
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    res.json(user);
+   
+    const profile = await Profile.findOne({ users: user._id })
+      .select('slry Des DOB Company_Name userAccount')
+      .lean();
+
+    res.json({
+      ...user,
+      profile: profile || null
+    });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error fetching user data' });
   }
 });
+
+
 
 
 router.put('/user/:empId/update', async (req, res) => {
   try {
     const empId = req.params.empId;
     let updateData = req.body;
-
-    
-    const blockeddata = ['empId', 'password', 'photo']; 
-
+const blockeddata = ['empId', 'password', 'photo']; 
     blockeddata.forEach(field => delete updateData[field]);
 
     if (Object.keys(updateData).length === 0) {
@@ -134,6 +149,10 @@ router.put('/user/:empId/update', async (req, res) => {
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
+await Notification.create({
+      empId: user.empId,
+      message: `Your profile was updated successfully.`
+    });
 
     res.json({ message: 'User updated successfully', user });
   } catch (err) {
@@ -146,10 +165,26 @@ router.delete('/user/:empId/delete', async (req, res) => {
   try {
     const empId = req.params.empId;
     const user = await Employee.findOneAndDelete({ empId });
+
     if (!user) return res.status(404).json({ error: 'User not found' });
+    await Notification.create({
+      empId,
+      message: `Your account has been deleted from the system.`
+    });
+
     res.json({ message: 'User deleted successfully' });
   } catch (err) {
     res.status(500).json({ error: 'Error deleting user' });
+  }
+});
+router.get('/notifications/:empId', async (req, res) => {
+  try {
+    const { empId } = req.params;
+    const notifications = await Notification.find({ empId })
+      .sort({ createdAt: -1 });
+    res.json(notifications);
+  } catch (err) {
+    res.status(500).json({ error: 'Error fetching notifications' });
   }
 });
 

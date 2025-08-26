@@ -34,19 +34,19 @@ router.post('/mark', async(req, res) => {
 
         let attendance = await Attendance.findOne({ empId, date });
 
-        // If attendance exists
+       
         if (attendance) {
-            // check if  mark 'in'
+          
             if (type === 'in' && attendance.inTime) {
                 return res.status(400).json({ error: 'In-Time already marked for today' });
             }
 
-            // check if exist mark out
+            
             if (type === 'out' && attendance.outTime) {
                 return res.status(400).json({ error: 'Out-Time already marked for today' });
             }
 
-            // Update the existing record
+          
             if (type === 'in') {
                 attendance.inTime = time;
                 attendance.inLocation = locationName;
@@ -62,7 +62,7 @@ router.post('/mark', async(req, res) => {
             return res.json({ message: `Attendance ${type === 'in' ? 'in-time' : 'out-time'} marked successfully` });
 
         } else {
-            // Create new record if it doesn't exist
+      
             const newAttendance = new Attendance({
                 empId,
                 name,

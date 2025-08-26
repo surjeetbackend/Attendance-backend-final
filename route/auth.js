@@ -3,7 +3,7 @@ const router = express.Router();
 const User = require('../model/user');
 const bcrypt = require('bcrypt');
 
-// Register a new employee
+
 router.post('/register-form', async (req, res) => {
   try {
     const { name, email, password, phone, photo, gender, hireDate } = req.body;
@@ -12,7 +12,7 @@ router.post('/register-form', async (req, res) => {
       return res.status(400).json({ error: 'Please fill all required fields' });
     }
 
-    // Check if user already exists by email or phone
+  
     const existingUser = await User.findOne({
       $or: [{ email: email.trim().toLowerCase() }, { phone: phone.trim() }]
     });
@@ -21,10 +21,10 @@ router.post('/register-form', async (req, res) => {
       return res.status(409).json({ error: 'User with this email or phone number already exists' });
     }
 
-    // Generate empId
+
     const empId = name.substring(0, 3).toUpperCase() + Math.floor(100 + Math.random() * 900);
 
-    // Hash password
+    
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = new User({

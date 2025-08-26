@@ -38,8 +38,8 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ['employee', 'manager', 'admin'],
     default: 'employee'
-  }
-    
+  },
+    profile: { type: mongoose.Schema.ObjectId, ref: 'Profile' }  
 
 });
 
