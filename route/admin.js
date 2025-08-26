@@ -65,10 +65,11 @@ const inputDate = new Date(date);
 router.get('/user', async (req, res) => {
   try {
     const employees = await Employee.find({})
-      .select('empId name email phone hireDate photo') 
+      .select('empId name email phone hireDate photo designation') 
       .populate({
-        path: 'profile',   
-        model: 'Profile'
+        path: 'profile',
+        model: 'Profile',
+        select: 'slry Des DOB Company_Name userAccount'
       })
       .lean();
 
@@ -78,6 +79,7 @@ router.get('/user', async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
+
 
 
 router.get('/attendances', async (req, res) => {
