@@ -32,15 +32,20 @@ const inputDate = new Date(date);
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet("Attendance");
 
-    worksheet.columns = [
-      { header: "Emp ID", key: "empId", width: 15 },
-      { header: "Name", key: "name", width: 20 },
-      { header: "Date", key: "date", width: 15 },
-      { header: "In Time", key: "inTime", width: 15 },
-      { header: "Out Time", key: "outTime", width: 15 },
-      { header: "In Location", key: "inLocation", width: 40 },
-      { header: "Out Location", key: "outLocation", width: 40 }
-    ];
+   worksheet.columns = [
+  { header: "Emp ID", key: "empId", width: 15 },
+  { header: "Name", key: "name", width: 20 },
+  { header: "Date", key: "date", width: 15 },
+  { header: "In Time", key: "inTime", width: 15 },
+  { header: "Out Time", key: "outTime", width: 15 },
+  { header: "In Location", key: "inLocation", width: 40 },
+  { header: "Out Location", key: "outLocation", width: 40 },
+{ header: "Salary", key: "slry", width: 15 },
+  { header: "Designation", key: "Des", width: 20 },
+  { header: "DOB", key: "DOB", width: 15 },
+  { header: "Company Name", key: "Company_Name", width: 25 },
+  { header: "User Account", key: "userAccount", width: 25 }
+];
 
     records.forEach(r => worksheet.addRow(r));
 
@@ -65,20 +70,33 @@ const inputDate = new Date(date);
 router.get('/user', async (req, res) => {
   try {
     const employees = await Employee.find({})
-      .select('empId name email phone hireDate photo designation') 
-      .populate({
-        path: 'profile',
-        model: 'Profile',
-        select: 'slry Des DOB Company_Name userAccount'
-      })
+      .select('empId name email phone hireDate photo designation')
       .lean();
 
-    res.json(employees);
+
+    const employeeIds = employees.map(e => e._id);
+    const profiles = await Profile.find({ users: { $in: employeeIds } })
+      .select('users slry Des DOB Company_Name userAccount')
+      .lean();
+
+   
+    const profileMap = {};
+    profiles.forEach(p => {
+      profileMap[p.users.toString()] = p;
+    });
+
+    const result = employees.map(e => ({
+      ...e,
+      profile: profileMap[e._id.toString()] || null
+    }));
+
+    res.json(result);
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
+
 
 
 
