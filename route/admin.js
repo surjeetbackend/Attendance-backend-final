@@ -102,15 +102,11 @@ router.get('/user', async (req, res) => {
 
 router.get('/attendances', async (req, res) => {
   try {
-    const { empId, page = 1, limit = 500 } = req.query;
-    const skip = (page - 1) * limit;
-
+    const { empId } = req.query;
     const query = empId ? { empId } : {};
-  const records = await Attendance.find(query)
-      .skip(skip)
-      .limit(parseInt(limit))
 
-      .sort({ date: -1 })
+    const records = await Attendance.find(query)
+      .sort({ date: -1 })   
       .select('-__v')
       .lean();
 
