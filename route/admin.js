@@ -103,15 +103,18 @@ router.get('/user', async (req, res) => {
 router.get('/attendances', async (req, res) => {
   try {
     const { empId } = req.query;
+
     const query = empId ? { empId } : {};
 
+  
     const records = await Attendance.find(query)
-      .sort({ date: -1 })   
+      .sort({ date: 1 }) 
       .select('-__v')
       .lean();
 
     res.json(records);
   } catch (err) {
+    console.error("Error fetching attendance:", err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
