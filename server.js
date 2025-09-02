@@ -33,6 +33,7 @@ const adminRoutes = require('./route/admin');
 const LeaveRoutes=require('./route/Leave');
 const emp_pay=require('./route/emp_pay');
 const holidayRoutes=require('./route/holidayRoutes')
+const payroll=require('./route/payrolls')
 //otp work 
 
 
@@ -42,6 +43,7 @@ app.use('/api/admin', adminRoutes);
 app.use ('/api/leave',LeaveRoutes);
 app.use('/api/emp',emp_pay);
 app.use("/api/holidays", holidayRoutes);
+app.use("/api/payroll",payroll)
 
 // Start server
 app.listen(PORT, () => {
