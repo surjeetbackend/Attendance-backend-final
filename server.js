@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const morgan = require("morgan");
 const path = require('path');
 const bodyParser = require('body-parser');
 require('dotenv').config();
@@ -14,6 +15,7 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors());
+app.use(morgan("dev"));
 
 app.use(express.urlencoded({ extended: true }));
 app.use(bodyParser.json({ limit: '50mb' }));
@@ -33,6 +35,7 @@ const adminRoutes = require('./route/admin');
 const LeaveRoutes=require('./route/Leave');
 const emp_pay=require('./route/emp_pay');
 const holidayRoutes=require('./route/holidayRoutes')
+const track_location=require('./route/livelocation')
 const payroll=require('./route/payrolls')
 //otp work 
 
@@ -43,6 +46,7 @@ app.use('/api/admin', adminRoutes);
 app.use ('/api/leave',LeaveRoutes);
 app.use('/api/emp',emp_pay);
 app.use("/api/holidays", holidayRoutes);
+app.use("/api/track-location",track_location)
 app.use("/api/payroll",payroll)
 
 // Start server
