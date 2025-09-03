@@ -2,6 +2,99 @@ const express = require("express");
 const router = express.Router();
 const Payroll = require("../model/payroll"); 
 const Employee = require("../model/user"); 
+const ExcelJS = require("exceljs");
+
+
+const monthNames = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
+router.get("/download/:month", async (req, res) => {
+  try {
+    let { month } = req.params; 
+    let formattedMonth = month;
+
+  
+    if (/^\d{4}-\d{2}$/.test(month)) {
+      const [year, m] = month.split("-");
+      const monthName = monthNames[parseInt(m, 10) - 1]; 
+      formattedMonth = `${monthName}-${year}`;
+    }
+
+    else if (/^[A-Za-z]{3,9}[- ]?\d{4}$/.test(month)) {
+      const [mon, year] = month.split(/[- ]/);
+      const idx = monthNames.findIndex(m => m.toLowerCase().startsWith(mon.toLowerCase()));
+      if (idx >= 0) {
+        formattedMonth = `${monthNames[idx]}-${year}`;
+      }
+    }
+
+    const payrolls = await Payroll.find({
+      month: { $regex: new RegExp(`^${formattedMonth}$`, "i") }
+    });
+
+    if (!payrolls || payrolls.length === 0) {
+      return res.status(404).json({ message: `No payroll found for ${formattedMonth}` });
+    }
+
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet(`Payroll-${formattedMonth}`);
+
+    worksheet.columns = [
+      { header: "Employee ID", key: "empId", width: 15 },
+      { header: "Month", key: "month", width: 15 },
+      { header: "Total Office Days", key: "totalOfficeDays", width: 18 },
+      { header: "Present Days", key: "presentDays", width: 15 },
+      { header: "Leave Days", key: "leaveDays", width: 15 },
+      { header: "Absent Days", key: "absentDays", width: 15 },
+      { header: "Salary", key: "salary", width: 15 },
+      { header: "Per Day Cost", key: "perDayCost", width: 15 },
+      { header: "Advance", key: "advance", width: 15 },
+      { header: "Food", key: "food", width: 15 },
+      { header: "Net Payable", key: "netPayable", width: 15 },
+    ];
+
+    
+    payrolls.forEach((p) => {
+      worksheet.addRow({
+        empId: p.empId || "N/A",
+        month: p.month,
+        totalOfficeDays: p.totalOfficeDays,
+        presentDays: p.presentDays,
+        leaveDays: p.leaveDays,
+        absentDays: p.absentDays,
+        salary: p.salary,
+        perDayCost: p.perDayCost,
+        advance: p.advance,
+        food: p.food,
+        netPayable: p.netPayable,
+      });
+    });
+
+   
+    worksheet.getRow(1).font = { bold: true };
+
+   
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=Payroll-${formattedMonth}.xlsx`
+    );
+
+   
+    await workbook.xlsx.write(res);
+    res.end();
+
+  } catch (error) {
+    console.error("Excel download error:", error);
+    res.status(500).json({ message: "Error generating Excel", error: error.message });
+  }
+});
+
 
 // router.post("/create-aproll", async (req, res) => {
 //   try {
@@ -53,7 +146,7 @@ router.post("/create-aproll/:empId", async (req, res) => {
   try {
     const empId = req.params.empId;
 
-    // ✅ Check if Employee exists
+
     const employee = await Employee.findOne({ empId });
     if (!employee) {
       return res.status(404).json({ message: `Employee with ID ${empId} does not exist` });
@@ -70,7 +163,15 @@ router.post("/create-aproll/:empId", async (req, res) => {
       food,
     } = req.body;
 
-    // salary calculations
+      const existingPayroll = await Payroll.findOne({ empId, month });
+    if (existingPayroll) {
+      return res.status(400).json({
+        message: `Payroll for Employee ${empId} already exists for ${month}`,
+        // payroll: existingPayroll,
+      });
+    }
+
+   
     const perDayCost = salary / totalOfficeDays;
     const payableForDays = perDayCost * presentDays;
     const deductions = (advance || 0) + (food || 0);
@@ -109,7 +210,7 @@ router.get("/payroll/:empId", async (req, res) => {
   }
 });
 
-// ✅ 4. Update Payroll (recalculate netPayable if needed)
+
 router.put("/:id", async (req, res) => {
   try {
     const {
@@ -143,11 +244,14 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-// ✅ 5. Delete Payroll
-router.delete("/:id", async (req, res) => {
+router.delete("/emp/:empId/:month", async (req, res) => {
   try {
-    await Payroll.findByIdAndDelete(req.params.id);
-    res.json({ message: "Payroll deleted" });
+    const { empId, month } = req.params;
+    const deleted = await Payroll.findOneAndDelete({ empId, month });
+    if (!deleted) {
+      return res.status(404).json({ message: `No payroll found for ${empId} in ${month}` });
+    }
+    res.json({ message: `Payroll for ${empId} (${month}) deleted`, deleted });
   } catch (error) {
     res.status(500).json({ message: "Error deleting payroll", error });
   }
