@@ -1,4 +1,3 @@
-// routes/livelocation.js
 const express = require("express");
 const admin = require("firebase-admin");
 const axios = require("axios");
@@ -6,7 +5,6 @@ require("dotenv").config();
 
 const router = express.Router();
 
-// Initialize Firebase Admin
 if (!admin.apps.length) {
   const serviceAccount = require("../serviceAccountKey.json");
   admin.initializeApp({
@@ -15,11 +13,9 @@ if (!admin.apps.length) {
 }
 
 const db = admin.firestore();
-
-// OpenCage API Key
 const OPENCAGE_KEY = process.env.OPENCAGE_API_KEY;
 
-// Convert lat/lng to human-readable address
+// Convert lat/lng to address
 async function getAddress(latitude, longitude) {
   try {
     const response = await axios.get(
@@ -28,11 +24,11 @@ async function getAddress(latitude, longitude) {
     if (response.data && response.data.results && response.data.results.length > 0) {
       return response.data.results[0].formatted;
     } else {
-      return `${latitude},${longitude}`; // fallback: just coords
+      return `${latitude},${longitude}`; // fallback
     }
   } catch (err) {
     console.error("Geocoding error:", err.message);
-    return `${latitude},${longitude}`; // fallback: just coords
+    return `${latitude},${longitude}`; // fallback
   }
 }
 
@@ -47,15 +43,24 @@ router.post("/update-location", async (req, res) => {
 
     const lat = parseFloat(latitude);
     const lng = parseFloat(longitude);
-
+    const timestamp = new Date().toISOString();
     const address = await getAddress(lat, lng);
 
-    await db.collection("locations").doc(empId).set(
+    const dateKey = timestamp.split("T")[0]; // e.g., "2025-09-03"
+    const locationEntry = {
+      latitude: lat,
+      longitude: lng,
+      address,
+      updatedAt: timestamp
+    };
+
+    const docRef = db.collection("locations").doc(empId);
+
+    // Store latest and date-wise grouped history
+    await docRef.set(
       {
-        latitude: lat,
-        longitude: lng,
-        address,
-        updatedAt: new Date().toISOString()
+        latest: locationEntry,
+        [`history.${dateKey}`]: admin.firestore.FieldValue.arrayUnion(locationEntry)
       },
       { merge: true }
     );
@@ -67,13 +72,13 @@ router.post("/update-location", async (req, res) => {
   }
 });
 
-// ------------------ GET: All Locations ------------------
+// ------------------ GET: All Latest Locations ------------------
 router.get("/track-location", async (req, res) => {
   try {
     const snapshot = await db.collection("locations").get();
     const locations = [];
     snapshot.forEach(doc => {
-      locations.push({ empId: doc.id, ...doc.data() });
+      locations.push({ empId: doc.id, ...doc.data().latest });
     });
     res.json({ locations });
   } catch (err) {
@@ -88,11 +93,14 @@ router.get("/track-location/:empId", async (req, res) => {
     const { empId } = req.params;
     const doc = await db.collection("locations").doc(empId).get();
 
-    if (!doc.exists) {
-      return res.status(404).json({ message: "Employee not found" });
-    }
+    if (!doc.exists) return res.status(404).json({ message: "Employee not found" });
 
-    res.json({ empId: doc.id, ...doc.data() });
+    const data = doc.data();
+    res.json({
+      empId: doc.id,
+      latest: data.latest || null,
+      history: data.history || {}
+    });
   } catch (err) {
     console.error("Fetch employee location error:", err);
     res.status(500).json({ message: "Error fetching employee location" });
