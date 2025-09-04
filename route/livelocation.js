@@ -85,13 +85,15 @@ router.post("/update-location", async (req, res) => {
     }
 
     // Store latest and date-wise grouped history
-    await docRef.set(
-      {
-        latest: locationEntry,
-        [`history.${dateKey}`]: admin.firestore.FieldValue.arrayUnion(locationEntry)
-      },
-      { merge: true }
-    );
+   await docRef.set(
+  {
+    latest: locationEntry,
+    history: {
+      [dateKey]: admin.firestore.FieldValue.arrayUnion(locationEntry),
+    },
+  },
+  { merge: true }
+);
 
     res.status(200).json({ message: "Location updated successfully", address });
   } catch (err) {
