@@ -46,59 +46,44 @@ router.post("/update-location", async (req, res) => {
   try {
     const { empId, latitude, longitude } = req.body;
 
-    // Validate input
-    if (
-      !empId ||
-      latitude === undefined ||
-      longitude === undefined ||
-      isNaN(parseFloat(latitude)) ||
-      isNaN(parseFloat(longitude))
-    ) {
-      return res.status(400).json({ message: "empId, valid latitude, longitude required" });
+    if (!empId || !latitude || !longitude) {
+      return res.status(400).json({ error: "empId, latitude, longitude required" });
     }
-
-    const lat = parseFloat(latitude);
-    const lng = parseFloat(longitude);
-    const timestamp = new Date().toISOString();
-
-    // Get address from lat/lng
-    const address = await getAddress(lat, lng);
-
-    const dateKey = timestamp.split("T")[0]; // e.g., "2025-09-03"
-    const locationEntry = {
-      latitude: lat,
-      longitude: lng,
-      address,
-      updatedAt: timestamp
-    };
 
     const docRef = db.collection("locations").doc(empId);
 
-    // Optional: Fetch current latest location to skip update if unchanged
-    const docSnapshot = await docRef.get();
-    const currentData = docSnapshot.exists ? docSnapshot.data() : null;
-    if (
-      currentData?.latest?.latitude === lat &&
-      currentData?.latest?.longitude === lng
-    ) {
-      return res.status(200).json({ message: "Location unchanged", address });
-    }
+    const locationEntry = {
+      latitude: Number(latitude),
+      longitude: Number(longitude),
+      updatedAt: new Date().toISOString(),
+    };
 
-    // Store latest and date-wise grouped history
-   await docRef.set(
-  {
-    latest: locationEntry,
-    history: {
-      [dateKey]: admin.firestore.FieldValue.arrayUnion(locationEntry),
-    },
-  },
-  { merge: true }
-);
+    const dateKey = new Date().toISOString().split("T")[0];
 
-    res.status(200).json({ message: "Location updated successfully", address });
+    // ✅ Always update latest
+    await docRef.set(
+      {
+        latest: locationEntry,
+      },
+      { merge: true }
+    );
+
+    // ✅ Push into history manually (arrayUnion can skip duplicates)
+    const docSnap = await docRef.get();
+    const existingData = docSnap.data() || {};
+    const history = existingData.history || {};
+    const todayHistory = history[dateKey] || [];
+
+    todayHistory.push(locationEntry);
+
+    await docRef.update({
+      [`history.${dateKey}`]: todayHistory,
+    });
+
+    return res.json({ message: "📍 Location updated successfully", locationEntry });
   } catch (err) {
-    console.error("Update location error:", err.stack || err);
-    res.status(500).json({ message: "Error updating location" });
+    console.error("❌ Error updating location:", err);
+    return res.status(500).json({ error: "Failed to update location" });
   }
 });
 
