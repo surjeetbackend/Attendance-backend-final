@@ -42,6 +42,7 @@ async function getAddress(latitude, longitude) {
 }
 
 // ------------------ POST: Update Location ------------------
+// ------------------ POST: Update Location ------------------
 router.post("/update-location", async (req, res) => {
   try {
     const { empId, latitude, longitude } = req.body;
@@ -52,9 +53,13 @@ router.post("/update-location", async (req, res) => {
 
     const docRef = db.collection("locations").doc(empId);
 
+    // 🌐 Get location name using reverse geocoding
+    const locationName = await getAddress(latitude, longitude);
+
     const locationEntry = {
       latitude: Number(latitude),
       longitude: Number(longitude),
+      locationName, // ⬅️ ADD this field
       updatedAt: new Date().toISOString(),
     };
 
@@ -68,7 +73,7 @@ router.post("/update-location", async (req, res) => {
       { merge: true }
     );
 
-    // ✅ Push into history manually (arrayUnion can skip duplicates)
+    // ✅ Push into history manually
     const docSnap = await docRef.get();
     const existingData = docSnap.data() || {};
     const history = existingData.history || {};
