@@ -228,6 +228,73 @@ router.get('/notifications/:empId', async (req, res) => {
     res.status(500).json({ error: 'Error fetching notifications' });
   }
 });
+router.get("/download-profiles", async (req, res) => {
+  try {
+  
+ const users = await Employee.find().lean();
+const userIds = users.map(u => u._id);
+const profiles = await Profile.find({ users: { $in: userIds } }).lean();
+
+const profileMap = {};
+profiles.forEach(p => {
+  profileMap[p.users.toString()] = p;
+});
+    
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Employee Profiles");
+
+    worksheet.columns = [
+      { header: "Emp ID", key: "empId", width: 15 },
+      { header: "Name", key: "name", width: 20 },
+      { header: "Email", key: "email", width: 25 },
+      { header: "Phone", key: "phone", width: 20 },
+      { header: "Gender", key: "gender", width: 10 },
+      { header: "DOB()", key: "DOB", width: 15 },
+      { header: "Hire Date", key: "hireDate", width: 15 },
+      { header: "Role", key: "role", width: 15 },
+      { header: "Salary", key: "slry", width: 15 },
+      { header: "Designation", key: "Des", width: 20 },
+      { header: "Company Name", key: "Company_Name", width: 25 },
+      { header: "Bank Name", key: "bank_name", width: 20 },
+      { header: "Account Number", key: "account_number", width: 20 },
+      { header: "IFSC Code", key: "Ifsc_code", width: 20 },
+    ];
+
+    users.forEach((u) => {
+  const p = profileMap[u._id.toString()] || {};
+  worksheet.addRow({
+    empId: u.empId || "",
+    name: u.name || "",
+    email: u.email || "",
+    phone: u.phone || "",
+    gender: u.gender || "",
+    DOB: p.DOB ? new Date(p.DOB).toLocaleDateString("en-GB") : "",
+    hireDate: u.hireDate ? new Date(u.hireDate).toLocaleDateString("en-GB") : "",
+    role: u.role || "",
+    slry: p.slry || "",
+    Des: p.Des || "",
+    Company_Name: p.Company_Name || "",
+    bank_name: p.userAccount?.bank_name || "",
+    account_number: p.userAccount?.account_number || "",
+    Ifsc_code: p.userAccount?.Ifsc_code || "",
+  });
+});
+   res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=employee_profiles.xlsx"
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error("Download error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
 
 
 module.exports = router;
