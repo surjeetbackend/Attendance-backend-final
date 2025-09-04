@@ -7,45 +7,67 @@ const Notification = require("../model/Notification");
 const Profile = require('../model/empslry');   
 router.post("/download", async (req, res) => {
   try {
-    let { date } = req.body; 
+    let { date, fromDate, toDate } = req.body;
+    let records = [];
 
-    if (!date) {
-      return res.status(400).json({ message: "Date is required" });
+    //  Single Date
+    if (date) {
+      const inputDate = new Date(date);
+      if (isNaN(inputDate)) {
+        return res.status(400).json({ message: "Invalid date format. Use YYYY-MM-DD" });
+      }
+
+      const formattedWithZero = inputDate.toLocaleDateString("en-US");
+      const formattedWithoutZero = `${inputDate.getMonth() + 1}/${inputDate.getDate()}/${inputDate.getFullYear()}`; 
+
+      records = await Attendance.find({
+        date: { $in: [formattedWithZero, formattedWithoutZero] }
+      });
     }
-const inputDate = new Date(date);
-    if (isNaN(inputDate)) {
-      return res.status(400).json({ message: "Invalid date format. Use MM/DD/YYYY" });
+
+    // Date custom 
+    else if (fromDate && toDate) {
+      const start = new Date(fromDate);
+      const end = new Date(toDate);
+
+      if (isNaN(start) || isNaN(end)) {
+        return res.status(400).json({ message: "Invalid date range format. Use YYYY-MM-DD" });
+      }
+
+      
+      let dateList = [];
+      let current = new Date(start);
+      while (current <= end) {
+        let withZero = current.toLocaleDateString("en-US"); 
+        let withoutZero = `${current.getMonth() + 1}/${current.getDate()}/${current.getFullYear()}`; 
+        dateList.push(withZero, withoutZero);
+        current.setDate(current.getDate() + 1);
+      }
+
+      records = await Attendance.find({ date: { $in: dateList } });
     }
 
-    const formattedWithZero = inputDate.toLocaleDateString("en-US"); 
-    const formattedWithoutZero = `${inputDate.getMonth() + 1}/${inputDate.getDate()}/${inputDate.getFullYear()}`; 
-
-    const records = await Attendance.find({
-      date: { $in: [formattedWithZero, formattedWithoutZero] }
-    });
+    else {
+      return res.status(400).json({ message: "Please provide either 'date' or 'fromDate' & 'toDate'" });
+    }
 
     if (!records.length) {
-      return res.status(404).json({ message: "No records found for this date" });
+      return res.status(404).json({ message: "No records found for the given date(s)" });
     }
 
-
+   
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet("Attendance");
 
-   worksheet.columns = [
-  { header: "Emp ID", key: "empId", width: 15 },
-  { header: "Name", key: "name", width: 20 },
-  { header: "Date", key: "date", width: 15 },
-  { header: "In Time", key: "inTime", width: 15 },
-  { header: "Out Time", key: "outTime", width: 15 },
-  { header: "In Location", key: "inLocation", width: 40 },
-  { header: "Out Location", key: "outLocation", width: 40 },
-{ header: "Salary", key: "slry", width: 15 },
-  { header: "Designation", key: "Des", width: 20 },
-  { header: "DOB", key: "DOB", width: 15 },
-  { header: "Company Name", key: "Company_Name", width: 25 },
-  { header: "User Account", key: "userAccount", width: 25 }
-];
+    worksheet.columns = [
+      { header: "Emp ID", key: "empId", width: 15 },
+      { header: "Name", key: "name", width: 20 },
+      { header: "Date", key: "date", width: 15 },
+      { header: "In Time", key: "inTime", width: 15 },
+      { header: "Out Time", key: "outTime", width: 15 },
+      { header: "In Location", key: "inLocation", width: 40 },
+      { header: "Out Location", key: "outLocation", width: 40 },
+    ];
 
     records.forEach(r => worksheet.addRow(r));
 
@@ -55,17 +77,17 @@ const inputDate = new Date(date);
     );
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename=attendance_${date}.xlsx`
+      `attachment; filename=attendance_${date || fromDate + "_to_" + toDate}.xlsx`
     );
 
     await workbook.xlsx.write(res);
     res.end();
+
   } catch (err) {
     console.error("Download error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
-
 
 router.get('/user', async (req, res) => {
   try {
