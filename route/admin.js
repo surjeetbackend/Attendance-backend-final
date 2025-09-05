@@ -4,7 +4,36 @@ const Attendance = require('../model/Attendance');
 const router = express.Router();
 const ExcelJS = require("exceljs");
 const Notification = require("../model/Notification");
-const Profile = require('../model/empslry');   
+const Profile = require('../model/empslry');
+const client = require("../redisClient");
+
+// Save attendance data (cache for 1 hour)
+async function saveAttendance(empId, data) {
+  await client.set(`attendance:${empId}`, JSON.stringify(data), {
+    EX: 3600, // expire in 1 hour
+  });
+  console.log("✅ Attendance cached in Redis");
+}
+
+
+async function getAttendance(empId) {
+  const data = await client.get(`attendance:${empId}`);
+  return data ? JSON.parse(data) : null;
+}
+
+async function clearAttendanceCache(empId) {
+  try {
+    if (empId) {
+      await redisClient.del(`attendance:${empId}`);
+    }
+    await redisClient.del("attendance:all");
+    console.log("🗑 Redis cache cleared");
+  } catch (err) {
+    console.error("Error clearing cache:", err);
+  }
+}
+
+
 router.post("/download", async (req, res) => {
   try {
     let { date, fromDate, toDate } = req.body;
@@ -122,24 +151,30 @@ router.get('/user', async (req, res) => {
 
 
 
-router.get('/attendances', async (req, res) => {
+router.get("/attendances", async (req, res) => {
   try {
     const { empId } = req.query;
-
     const query = empId ? { empId } : {};
+    const redisKey = empId ? `attendance:${empId}` : "attendance:all";
 
-  
-    const records = await Attendance.find(query)
-      .sort({ date: 1 }) 
-      .select('-__v')
-      .lean();
+    const cachedData = await redisClient.get(redisKey);
+    if (cachedData) {
+      console.log("📌 From Redis Cache");
+      return res.json(JSON.parse(cachedData));
+    }
+
+    const records = await Attendance.find(query).sort({ date: 1 }).select("-__v").lean();
+
+    await redisClient.setEx(redisKey, 60, JSON.stringify(records));
+    console.log("✅ Attendance cached in Redis");
 
     res.json(records);
   } catch (err) {
     console.error("Error fetching attendance:", err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
+
 
 router.get('/user/:empId', async (req, res) => {
   try {
