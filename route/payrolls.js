@@ -152,6 +152,11 @@ router.post("/create-aproll/:empId", async (req, res) => {
 
     let { month, salary, advance = 0, food = 0 } = req.body;
 
+    // 🟡 Use salary from DB if not passed
+    if (!salary) {
+      salary = employee.salary;
+    }
+
     if (!month || !salary) {
       return res.status(400).json({ message: "Month and salary are required" });
     }
@@ -186,9 +191,9 @@ router.post("/create-aproll/:empId", async (req, res) => {
       return res.status(404).json({ message: `No monthly summary found for ${empId} in ${prefix}` });
     }
 
-    // Calculate working days excluding Sundays and holidays
+    // 🟡 Calculate total working days excluding Sundays & holidays
     const startDate = new Date(`${year}-${monthNumber.toString().padStart(2, "0")}-01`);
-    const endDate = new Date(year, monthNumber, 0); // last day of the month
+    const endDate = new Date(year, monthNumber, 0);
 
     const holidays = await Holiday.find({
       date: { $gte: startDate, $lte: endDate }
@@ -207,14 +212,15 @@ router.post("/create-aproll/:empId", async (req, res) => {
       }
     }
 
-    // Get all days
+    // ⏱ Attendance breakdown
     const presentDays = summary.present || 0;
     const leaveDays = summary.leave || 0;
     const halfdayDays = summary.halfday || 0;
     const absentDays = summary.absent || 0;
 
-    // Salary calculations
+    // 💰 Salary Calculation
     const perDayCost = salary / totalOfficeDays;
+
     const fullPaidDays = presentDays + leaveDays;
     const halfPaidDays = halfdayDays * 0.5;
     const payableDays = fullPaidDays + halfPaidDays;
@@ -222,12 +228,13 @@ router.post("/create-aproll/:empId", async (req, res) => {
     const payableForDays = perDayCost * payableDays;
     const netPayable = payableForDays - (advance + food);
 
-    // Check for duplicate payroll
+    // 🚫 Check duplicate payroll
     const existing = await Payroll.findOne({ empId, month: prefix });
     if (existing) {
       return res.status(400).json({ message: `Payroll already exists for ${empId} in ${prefix}` });
     }
 
+    // ✅ Create Payroll Record
     const payroll = new Payroll({
       empId,
       month: prefix,
@@ -245,7 +252,7 @@ router.post("/create-aproll/:empId", async (req, res) => {
 
     await payroll.save();
 
-    res.status(201).json({ message: "Payroll generated from MonthlySummary", payroll });
+    res.status(201).json({ message: "Payroll created successfully", payroll });
 
   } catch (error) {
     console.error("Payroll error:", error);
