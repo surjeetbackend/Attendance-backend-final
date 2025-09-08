@@ -7,7 +7,7 @@ const attendanceSchema = new mongoose.Schema({
     date: String,
     photo: String,
     outTime: String,
-    date: String,
+    // date: String,
     inLocation: String,
     outLocation: String,
 
