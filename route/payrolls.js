@@ -145,11 +145,13 @@ router.post("/create-aproll/:empId", async (req, res) => {
   try {
     const empId = req.params.empId;
     const employee = await Employee.findOne({ empId });
+
     if (!employee) {
       return res.status(404).json({ message: `Employee ${empId} not found` });
     }
 
     let { month, salary, advance = 0, food = 0 } = req.body;
+
     if (!month || !salary) {
       return res.status(400).json({ message: "Month and salary are required" });
     }
@@ -184,9 +186,9 @@ router.post("/create-aproll/:empId", async (req, res) => {
       return res.status(404).json({ message: `No monthly summary found for ${empId} in ${prefix}` });
     }
 
-    // Calculate total working (office) days excluding Sundays and Holidays
+    // Calculate working days excluding Sundays and holidays
     const startDate = new Date(`${year}-${monthNumber.toString().padStart(2, "0")}-01`);
-    const endDate = new Date(year, monthNumber, 0); // last day of month
+    const endDate = new Date(year, monthNumber, 0); // last day of the month
 
     const holidays = await Holiday.find({
       date: { $gte: startDate, $lte: endDate }
@@ -200,19 +202,27 @@ router.post("/create-aproll/:empId", async (req, res) => {
       const dateStr = date.toISOString().split("T")[0];
       const isSunday = date.getDay() === 0;
       const isHoliday = holidayDates.has(dateStr);
-
       if (!isSunday && !isHoliday) {
         totalOfficeDays++;
       }
     }
 
+    // Get all days
+    const presentDays = summary.present || 0;
+    const leaveDays = summary.leave || 0;
+    const halfdayDays = summary.halfday || 0;
+    const absentDays = summary.absent || 0;
+
     // Salary calculations
     const perDayCost = salary / totalOfficeDays;
-    const payableDays = (summary.present || 0) + (summary.leave || 0) + ((summary.halfday || 0) * 0.5);
+    const fullPaidDays = presentDays + leaveDays;
+    const halfPaidDays = halfdayDays * 0.5;
+    const payableDays = fullPaidDays + halfPaidDays;
+
     const payableForDays = perDayCost * payableDays;
     const netPayable = payableForDays - (advance + food);
 
-    // Prevent duplicate payroll
+    // Check for duplicate payroll
     const existing = await Payroll.findOne({ empId, month: prefix });
     if (existing) {
       return res.status(400).json({ message: `Payroll already exists for ${empId} in ${prefix}` });
@@ -222,10 +232,10 @@ router.post("/create-aproll/:empId", async (req, res) => {
       empId,
       month: prefix,
       totalOfficeDays,
-      presentDays: summary.present,
-      leaveDays: summary.leave,
-      halfdayDays: summary.halfday,
-      absentDays: summary.absent,
+      presentDays,
+      leaveDays,
+      halfdayDays,
+      absentDays,
       salary,
       perDayCost,
       advance,
@@ -242,6 +252,7 @@ router.post("/create-aproll/:empId", async (req, res) => {
     res.status(500).json({ message: "Failed to create payroll", error: error.message });
   }
 });
+
 
 
 
