@@ -1,11 +1,11 @@
-
 const mongoose = require("mongoose");
+
 const monthlySummarySchema = new mongoose.Schema({
   empId: { type: String, required: true },
-  month: { type: String, required: true }, 
+  month: { type: String, required: true }, // Format: YYYY-MM
   present: { type: Number, default: 0 },
   leave: { type: Number, default: 0 },
-  halfday: { type: Number, default: 0 }, 
+    halfday: { type: Number, default: 0 }, 
   absent: { type: Number, default: 0 },
 });
 
