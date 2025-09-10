@@ -5,9 +5,23 @@ const Employee = require("../model/user");
 const Attendance = require("../model/Attendance");
 const MonthlySummary= require('../model/recodattendance')
 const ExcelJS = require("exceljs");
-
+const Profile = require("../model/empslry");
 const Holiday = require('../model/holidays'); 
 
+async function getProfileByEmpId(empId) {
+  // Try finding profile by 'user' field (string empId)
+  let profile = await Profile.findOne({ user: empId });
+  if (profile) return profile;
+
+  // If not found, try by users (ObjectId referencing User)
+  const employee = await Employee.findOne({ empId });
+  if (employee) {
+    profile = await Profile.findOne({ users: employee._id });
+    return profile;
+  }
+
+  return null; // no profile found
+}
 const monthNames = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"
@@ -48,8 +62,9 @@ async function calculateWorkingDays(year, month) {
 router.get("/download/:month", async (req, res) => {
   try {
     const { month } = req.params;
-
     let year, m;
+
+    // Month parsing
     if (/^\d{4}-\d{2}$/.test(month)) {
       [year, m] = month.split("-");
     } else {
@@ -65,39 +80,47 @@ router.get("/download/:month", async (req, res) => {
     const formattedMonth = `${monthNames[parseInt(m) - 1]}-${year}`;
     const prefix = `${year}-${m}`;
 
+    // fetch data
     const employees = await Employee.find();
-    if (!employees.length) return res.status(404).json({ message: "No employees found" });
-
     const summaries = await MonthlySummary.find({ month: prefix });
-
-    // 🟡 NEW: Fetch all payrolls for the month
     const payrollMap = {};
     const payrollsFromDB = await Payroll.find({ month: prefix });
-    payrollsFromDB.forEach(p => {
-      payrollMap[p.empId] = p;
+    payrollsFromDB.forEach(p => (payrollMap[p.empId] = p));
+
+    // profiles fetch + map
+    const profiles = await Profile.find().populate("users");
+    const profileByEmpId = {};
+    const profileByUserId = {};
+
+    profiles.forEach(p => {
+      if (p.user) profileByEmpId[p.user] = p; // stored as empId
+      if (p.users) profileByUserId[p.users.toString()] = p; // stored as ObjectId
     });
 
     const totalOfficeDays = await calculateWorkingDays(parseInt(year), parseInt(m));
-
     const payrolls = [];
 
     for (const emp of employees) {
       const summary = summaries.find(s => s.empId === emp.empId) || {};
       const payroll = payrollMap[emp.empId] || {};
 
-      const presentDays = summary.present || 0;
-      const leaveDays = summary.leave || 0;
-      const halfdayDays = summary.halfday || 0;
-      const absentDays = summary.absent || 0;
+      // Profile match: try empId → then ObjectId
+      const profile = profileByEmpId[emp.empId] || profileByUserId[emp._id.toString()] || {};
 
       payrolls.push({
         empId: emp.empId,
+        name: emp.name,
+        designation: profile.Des ?? "",
+        company: profile.Company_Name ?? "",
+        bankName: profile.userAccount?.bank_name ?? "",
+        accountNumber: profile.userAccount?.account_number ?? "",
+        ifsc: profile.userAccount?.Ifsc_code ?? "",
         month: formattedMonth,
         totalOfficeDays,
-        presentDays,
-        leaveDays,
-        halfdayDays,
-        absentDays,
+        presentDays: summary.present || 0,
+        leaveDays: summary.leave || 0,
+        halfdayDays: summary.halfday || 0,
+        absentDays: summary.absent || 0,
         salary: payroll.salary ?? 0,
         perDayCost: payroll.perDayCost ?? 0,
         advance: payroll.advance ?? 0,
@@ -106,11 +129,18 @@ router.get("/download/:month", async (req, res) => {
       });
     }
 
+    // Excel create
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet(`Payroll-${formattedMonth}`);
 
     worksheet.columns = [
       { header: "Employee ID", key: "empId", width: 15 },
+      { header: "Name", key: "name", width: 20 },
+      { header: "Designation", key: "designation", width: 20 },
+      { header: "Company", key: "company", width: 20 },
+      { header: "Bank Name", key: "bankName", width: 20 },
+      { header: "Account Number", key: "accountNumber", width: 40 },
+      { header: "IFSC Code", key: "ifsc", width: 15 },
       { header: "Month", key: "month", width: 15 },
       { header: "Total Office Days", key: "totalOfficeDays", width: 18 },
       { header: "Present Days", key: "presentDays", width: 15 },
@@ -132,42 +162,44 @@ router.get("/download/:month", async (req, res) => {
 
     await workbook.xlsx.write(res);
     res.end();
-
   } catch (err) {
     console.error("Payroll download error:", err);
     res.status(500).json({ message: "Error generating payroll", error: err.message });
   }
 });
-// Route 2: Create payroll for employee from monthly summary
 
 
 router.post("/create-aproll/:empId", async (req, res) => {
-  try {
+   try {
     const empId = req.params.empId;
-    const employee = await Employee.findOne({ empId });
 
+    // Fetch employee
+    const employee = await Employee.findOne({ empId });
     if (!employee) {
       return res.status(404).json({ message: `Employee ${empId} not found` });
     }
 
-    let { month, salary, advance = 0, food = 0 } = req.body;
-
-    // 🟡 Use salary from DB if not passed
-    if (!salary) {
-      salary = employee.salary;
+    // Use helper to get profile
+    const profile = await getProfileByEmpId(empId);
+    if (!profile) {
+      return res.status(404).json({ message: `Profile not found for ${empId}` });
     }
+
+    const bankName = profile.userAccount?.bank_name || "";
+    const accountNumber = profile.userAccount?.account_number || "";
+    const ifscCode = profile.userAccount?.Ifsc_code || "";
+    const designation = profile.Des || "";
+    const companyName = profile.Company_Name || "";
+    const salary = profile.slry;
+
+    let { month, advance = 0, food = 0 } = req.body;
 
     if (!month || !salary) {
       return res.status(400).json({ message: "Month and salary are required" });
     }
 
-    const monthNames = [
-      "January", "February", "March", "April", "May", "June",
-      "July", "August", "September", "October", "November", "December"
-    ];
-
+    // Parse month into year and monthNumber
     let year, monthNumber;
-
     if (/^\d{4}-\d{2}$/.test(month)) {
       [year, monthNumber] = month.split("-");
       monthNumber = parseInt(monthNumber, 10);
@@ -186,41 +218,36 @@ router.post("/create-aproll/:empId", async (req, res) => {
 
     const prefix = `${year}-${monthNumber.toString().padStart(2, "0")}`;
 
+    // Fetch monthly summary
     const summary = await MonthlySummary.findOne({ empId, month: prefix });
     if (!summary) {
       return res.status(404).json({ message: `No monthly summary found for ${empId} in ${prefix}` });
     }
 
-    // 🟡 Calculate total working days excluding Sundays & holidays
+    // Calculate total office days (excluding Sundays and holidays)
     const startDate = new Date(`${year}-${monthNumber.toString().padStart(2, "0")}-01`);
     const endDate = new Date(year, monthNumber, 0);
-
-    const holidays = await Holiday.find({
-      date: { $gte: startDate, $lte: endDate }
-    });
-
+    const holidays = await Holiday.find({ date: { $gte: startDate, $lte: endDate } });
     const holidayDates = new Set(holidays.map(h => h.date.toISOString().split("T")[0]));
 
     let totalOfficeDays = 0;
     for (let day = 1; day <= endDate.getDate(); day++) {
       const date = new Date(year, monthNumber - 1, day);
-      const dateStr = date.toISOString().split("T")[0];
       const isSunday = date.getDay() === 0;
+      const dateStr = date.toISOString().split("T")[0];
       const isHoliday = holidayDates.has(dateStr);
       if (!isSunday && !isHoliday) {
         totalOfficeDays++;
       }
     }
 
-    // ⏱ Attendance breakdown
     const presentDays = summary.present || 0;
     const leaveDays = summary.leave || 0;
     const halfdayDays = summary.halfday || 0;
     const absentDays = summary.absent || 0;
 
-    // 💰 Salary Calculation
+    // Calculate salary details
     const perDayCost = salary / totalOfficeDays;
-
     const fullPaidDays = presentDays + leaveDays;
     const halfPaidDays = halfdayDays * 0.5;
     const payableDays = fullPaidDays + halfPaidDays;
@@ -228,13 +255,13 @@ router.post("/create-aproll/:empId", async (req, res) => {
     const payableForDays = perDayCost * payableDays;
     const netPayable = payableForDays - (advance + food);
 
-    // 🚫 Check duplicate payroll
+    // Check if payroll already exists
     const existing = await Payroll.findOne({ empId, month: prefix });
     if (existing) {
       return res.status(400).json({ message: `Payroll already exists for ${empId} in ${prefix}` });
     }
 
-    // ✅ Create Payroll Record
+    // Create new payroll
     const payroll = new Payroll({
       empId,
       month: prefix,
@@ -248,15 +275,23 @@ router.post("/create-aproll/:empId", async (req, res) => {
       advance,
       food,
       netPayable,
+      designation,
+      companyName,
+      bankDetails: profile.userAccount,
     });
 
     await payroll.save();
 
-    res.status(201).json({ message: "Payroll created successfully", payroll });
-
+    res.status(201).json({
+      message: "Payroll created successfully",
+      payroll,
+    });
   } catch (error) {
     console.error("Payroll error:", error);
-    res.status(500).json({ message: "Failed to create payroll", error: error.message });
+    res.status(500).json({
+      message: "Failed to create payroll",
+      error: error.message,
+    });
   }
 });
 
