@@ -15,7 +15,13 @@ const PayrollSchema = new mongoose.Schema({
   advance: { type: Number, default: 0 },           
   food: { type: Number, default: 0 },               
 
-  netPayable: { type: Number },                    
+  netPayable: { type: Number },   
+  bankName: { type: String },
+accountNumber: { type: Number },
+ifscCode: { type: String },
+designation: { type: String },
+companyName: { type: String },
+                 
 
   generatedDate: { type: Date, default: Date.now }
 });
