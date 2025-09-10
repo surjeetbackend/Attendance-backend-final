@@ -218,13 +218,13 @@ router.post("/create-aproll/:empId", async (req, res) => {
 
     const prefix = `${year}-${monthNumber.toString().padStart(2, "0")}`;
 
-    // Fetch monthly summary
+ 
     const summary = await MonthlySummary.findOne({ empId, month: prefix });
     if (!summary) {
       return res.status(404).json({ message: `No monthly summary found for ${empId} in ${prefix}` });
     }
 
-    // Calculate total office days (excluding Sundays and holidays)
+ 
     const startDate = new Date(`${year}-${monthNumber.toString().padStart(2, "0")}-01`);
     const endDate = new Date(year, monthNumber, 0);
     const holidays = await Holiday.find({ date: { $gte: startDate, $lte: endDate } });
