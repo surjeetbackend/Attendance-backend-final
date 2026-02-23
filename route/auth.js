@@ -3,7 +3,7 @@ const router = express.Router();
 const User = require('../model/user');
 const bcrypt = require('bcrypt');
 
-const { protect, authorize } = require("../middleware/auth");
+const { protect, authorize } = require("../middleware.js");
 
 router.post(
   "/admin/create-user",
