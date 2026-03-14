@@ -7,7 +7,7 @@ const MonthlySummary= require('../model/recodattendance')
 const ExcelJS = require("exceljs");
 const Profile = require("../model/empslry");
 const Holiday = require('../model/holidays'); 
-const { protect, authorize } = require("../middleware/auth");
+const { protect, authorize } = require("../middleware.js");
 async function getProfileByEmpId(empId) {
   let profile = await Profile.findOne({ user: empId });
   if (profile) return profile;
