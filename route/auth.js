@@ -59,7 +59,7 @@ router.post(
     }
   }
 );
-router.post('/register-form',protect,authorize('hr_admin'), async (req, res) => {
+router.post('/register-form', async (req, res) => {
   try {
     const { name, email, password, phone, photo, gender, hireDate } = req.body;
 
