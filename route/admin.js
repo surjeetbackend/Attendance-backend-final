@@ -5,8 +5,7 @@ const router = express.Router();
 const ExcelJS = require("exceljs");
 const Notification = require("../model/Notification");
 const Profile = require('../model/empslry');   
-
-// ------------------ DOWNLOAD ATTENDANCE ------------------
+const { protect, authorize } = require("../middleware/auth");
 
 router.post("/download", async (req, res) => {
   try {
@@ -91,7 +90,54 @@ router.post("/download", async (req, res) => {
   }
 });
 
+router.get("/attendance-summary-today",  async (req, res) => {
+  try {
 
+    // ✅ Current Date
+    const today = new Date();
+
+    const formattedWithZero = today.toLocaleDateString("en-US");
+    const formattedWithoutZero = `${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear()}`;
+
+    // ✅ Total Employees
+    const totalEmployees = await Employee.countDocuments({ role: "employee" });
+
+    // ✅ Today Attendance Records
+    const attendanceRecords = await Attendance.find({
+      date: { $in: [formattedWithZero, formattedWithoutZero] }
+    });
+
+    let present = 0;
+    let leave = 0;
+
+    attendanceRecords.forEach(record => {
+      if (record.status === "leave") {
+        leave++;
+      } else {
+        present++;
+      }
+    });
+
+    const absent = totalEmployees - present - leave;
+
+    const presentPercentage = totalEmployees > 0
+      ? ((present / totalEmployees) * 100).toFixed(2)
+      : "0.00";
+
+    res.json({
+      date: today.toISOString().split("T")[0],
+      totalEmployees,
+      present,
+      absent,
+      leave,
+      presentPercentage: `${presentPercentage}%`
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
 // ------------------ DOWNLOAD PROFILES ------------------
 
 router.get("/download-profiles", async (req, res) => {
@@ -298,7 +344,7 @@ router.delete('/user/:empId/delete', async (req, res) => {
 });
 
 
-// ------------------ NOTIFICATIONS ------------------
+
 
 router.get('/notifications/:empId', async (req, res) => {
   try {
@@ -309,6 +355,44 @@ router.get('/notifications/:empId', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: 'Error fetching notifications' });
   }
+});
+
+router.get("/hr/employees", async (req, res) => {
+
+  const employees = await User.find({
+    companyCode: req.user.companyCode,
+    role: "employee"
+  });
+
+  res.json(employees);
+});
+router.post("/api/hr/sync-employee", async (req, res) => {
+  if (req.headers["x-api-key"] !== "ims-secret") {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const { empId, name, email, phone, role, companyCode } = req.body;
+
+  const existing = await User.findOne({ empId, companyCode });
+
+  if (existing) {
+    return res.json({ message: "Already exists" });
+  }
+
+  const newUser = new User({
+    empId,
+    name,
+    email,
+    phone,
+    role,
+    companyCode,
+    password: "123456",
+    hireDate: new Date()
+  });
+
+  await newUser.save();
+
+  res.json({ message: "Employee synced to Attendance Portal" });
 });
 
 router.get("/employee-overview",async (req, res) => {
