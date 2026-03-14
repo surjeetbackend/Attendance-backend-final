@@ -7,7 +7,7 @@ const MonthlySummary= require('../model/recodattendance')
 const ExcelJS = require("exceljs");
 const Profile = require("../model/empslry");
 const Holiday = require('../model/holidays'); 
-const { protect, authorize } = require("../middleware.js");
+const { protect, authorize } = require("../middleware/auth");
 async function getProfileByEmpId(empId) {
   let profile = await Profile.findOne({ user: empId });
   if (profile) return profile;
@@ -56,7 +56,7 @@ async function calculateWorkingDays(year, month) {
 
 
 // ================= Get All Payroll List ==================
-router.get("/list",protect, authorize('hr_admin','admin'), async (req, res) => {
+router.get("/list", async (req, res) => {
   try {
 
     const payrolls = await Payroll.find().sort({ createdAt: -1 });
@@ -97,7 +97,7 @@ router.get("/list",protect, authorize('hr_admin','admin'), async (req, res) => {
   }
 });
 // ================= Download Payroll Excel ==================
-router.get("/download/:month",protect, authorize('hr_admin','admin'), async (req, res) => {
+router.get("/download/:month", async (req, res) => {
   try {
     const { month } = req.params;
     let year, m;
@@ -199,7 +199,7 @@ router.get("/download/:month",protect, authorize('hr_admin','admin'), async (req
 });
 
 // ================= Create Payroll ==================
-router.post("/create-aproll/:empId", protect, authorize('hr_admin','admin'),async (req, res) => {
+router.post("/create-aproll/:empId", async (req, res) => {
   try {
     const empId = req.params.empId;
     const employee = await Employee.findOne({ empId });
@@ -331,7 +331,7 @@ router.put("/:id", async (req, res) => {
 });
 
 // ================= Delete Payroll ==================
-router.delete("/emp/:empId/:month",protect, authorize('hr_admin','admin'), async (req, res) => {
+router.delete("/emp/:empId/:month", async (req, res) => {
   try {
     const { empId, month } = req.params;
     const deleted = await Payroll.findOneAndDelete({ empId, month });
