@@ -311,5 +311,67 @@ router.get('/notifications/:empId', async (req, res) => {
   }
 });
 
+router.get("/employee-overview",async (req, res) => {
+    try {
+
+      const today = new Date();
+
+      const formattedWithZero = today.toLocaleDateString("en-US");
+      const formattedWithoutZero = `${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear()}`;
+
+      // ✅ Total Employees
+      const totalEmployees = await Employee.countDocuments({
+        role: "employee"
+      });
+
+      // ✅ Attendance Today
+      const attendanceRecords = await Attendance.find({
+        date: { $in: [formattedWithZero, formattedWithoutZero] }
+      });
+
+      let present = 0;
+      let leave = 0;
+
+      attendanceRecords.forEach(r => {
+        if (r.status === "leave") {
+          leave++;
+        } else {
+          present++;
+        }
+      });
+
+      const absent = totalEmployees - present - leave;
+
+      // ✅ Payroll This Month
+      const Payroll = require("../model/payroll");
+
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, "0");
+      const monthPrefix = `${year}-${month}`;
+
+      const payrolls = await Payroll.find({
+        month: { $regex: `^${monthPrefix}` }
+      });
+
+      let totalPayroll = 0;
+
+      payrolls.forEach(p => {
+        totalPayroll += p.netPayable || 0;
+      });
+
+      res.json({
+        totalEmployees,
+        presentToday: present,
+        absentToday: absent,
+        leaveToday: leave,
+        payrollThisMonth: totalPayroll
+      });
+
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Server error" });
+    }
+  }
+);
 
 module.exports = router;
