@@ -59,6 +59,48 @@ async function calculateWorkingDays(year, month) {
   return workingDays;
 }
 
+
+router.get("/list",protect, authorize('hr_admin','admin'), async (req, res) => {
+  try {
+
+    const payrolls = await Payroll.find().sort({ createdAt: -1 });
+
+    const employees = await Employee.find();
+    const employeeMap = {};
+
+    employees.forEach(emp => {
+      employeeMap[emp.empId] = emp.name;
+    });
+
+    const data = payrolls.map(p => ({
+      _id: p._id,
+      empId: p.empId,
+      name: employeeMap[p.empId] || "",
+      month: p.month,
+      totalOfficeDays: p.totalOfficeDays,
+      presentDays: p.presentDays,
+      leaveDays: p.leaveDays,
+      absentDays: p.absentDays,
+      salary: p.salary,
+      perDayCost: p.perDayCost,
+      advance: p.advance,
+      food: p.food,
+      netPayable: p.netPayable
+    }));
+
+    res.json({
+      count: data.length,
+      payrolls: data
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      message: "Error fetching payroll list",
+      error: error.message
+    });
+  }
+});
+
 router.get("/download/:month", async (req, res) => {
   try {
     const { month } = req.params;
