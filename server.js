@@ -11,7 +11,7 @@ require('dotenv').config();
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
@@ -37,6 +37,7 @@ const emp_pay=require('./route/emp_pay');
 const holidayRoutes=require('./route/holidayRoutes')
 const track_location=require('./route/livelocation')
 const payroll=require('./route/payrolls')
+const profile=require('./route/profile')
 //otp work 
 
 
@@ -48,7 +49,7 @@ app.use('/api/emp',emp_pay);
 app.use("/api/holidays", holidayRoutes);
 app.use("/api/track-location",track_location)
 app.use("/api/payroll",payroll)
-
+app.use('/profile',profile)
 // Start server
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
