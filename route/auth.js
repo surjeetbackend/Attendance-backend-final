@@ -3,12 +3,11 @@ const router = express.Router();
 const User = require('../model/user');
 const bcrypt = require('bcrypt');
 
-const { protect, authorize } = require("../middleware.js");
+const { protect, authorize } = require("../middleware/auth");
 
 router.post(
   "/admin/create-user",
-  // protect,
-  // authorize("admin"),
+ 
   async (req, res) => {
     try {
       const { name, email, password, phone, hireDate, role } = req.body;
@@ -55,6 +54,7 @@ router.post(
         empId,
       });
     } catch (err) {
+      console.error("Create User Error:", err);   
       res.status(500).json({ error: "Error creating user" });
     }
   }
@@ -63,7 +63,7 @@ router.post('/register-form', async (req, res) => {
   try {
     const { name, email, password, phone, photo, gender, hireDate } = req.body;
 
-    if (!name || !email || !password || !phone || !photo || !hireDate) {
+    if (!name || !email || !password || !phone  || !hireDate) {
       return res.status(400).json({ error: 'Please fill all required fields' });
     }
 
@@ -104,7 +104,6 @@ router.post('/register-form', async (req, res) => {
   }
 });
 
-
 router.post('/login', async(req, res) => {
     try {
         const { empId, password } = req.body;
@@ -130,5 +129,6 @@ router.post('/login', async(req, res) => {
         res.status(500).json({ error: 'Server error during login' });
     }
 });
+
 
 module.exports = router;
