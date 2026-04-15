@@ -19,7 +19,7 @@ router.get('/emp/:empId', async (req, res) => {
 });
 
 
-router.put('/emp/:empId', protect,authorize('employee'),async (req, res) => {
+router.put('/emp/:empId',async (req, res) => {
   try {
     const updatedUser = await User.findOneAndUpdate(
       { empId: req.params.empId },
@@ -37,7 +37,7 @@ router.put('/emp/:empId', protect,authorize('employee'),async (req, res) => {
   }
 });
 
-router.delete('/emp/:empId',protect,authorize('employee'), async (req, res) => {
+router.delete('/emp/:empId', async (req, res) => {
   try {
     const deletedUser = await User.findOneAndDelete({ empId: req.params.empId });
 
