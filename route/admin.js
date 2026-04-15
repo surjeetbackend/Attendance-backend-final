@@ -5,7 +5,7 @@ const router = express.Router();
 const ExcelJS = require("exceljs");
 const Notification = require("../model/Notification");
 const Profile = require('../model/empslry');   
-// const { protect, authorize } = require("../middleware/auth");
+const { protect, authorize } = require("../middleware/auth");
 
 router.post("/download", async (req, res) => {
   try {
