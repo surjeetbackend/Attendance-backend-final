@@ -14,9 +14,10 @@ const LeaveSchema = new mongoose.Schema({
   },
   appliedAt: { type: Date, default: Date.now },
   approveBy: { type: String, default: '' },
-  leaveType: { type: String, enum: ['paid', 'unpaid', 'partially paid'], default: 'unpaid' },
+  leaveType: { type: String, enum: ['paid', 'unpaid', 'partially paid',"optional_leave"], default: 'unpaid' },
   paidDays: { type: Number, default: 0 },
   unpaidDays: { type: Number, default: 0 },
+  
  hrComment:{type:String, default:'no remark'}
 });
 
