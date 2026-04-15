@@ -7,6 +7,20 @@ const Holiday = require("../model/holidays"); // 👈 Add this
 
 require('dotenv').config();
 
+function convertTo24Hour(timeStr) {
+    const [time, modifier] = timeStr.split(" ");
+    let [hours, minutes, seconds] = time.split(":");
+
+    if (modifier === "PM" && hours !== "12") {
+        hours = parseInt(hours, 10) + 12;
+    }
+
+    if (modifier === "AM" && hours === "12") {
+        hours = "00";
+    }
+
+    return `${hours}:${minutes}:${seconds}`;
+}
 async function getAddressFromCoords(coords) {
     try {
         const [lat, lng] = coords.split(',').map(s => s.trim());
